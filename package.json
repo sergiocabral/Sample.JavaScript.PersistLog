@@ -1,0 +1,16 @@
+{
+  "name": "persist-log",
+  "version": "1.0.0",
+  "description": "NodeJS e ElasticSearch: Persistindo mensagens do console.log no banco de dados",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "sergiocabral.com",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.24.0",
+    "express": "^4.17.2"
+  }
+}

@@ -93,8 +93,16 @@
             document.getElementById('toSymbol').addEventListener('change', debounce(convert));
         }
 
+        function ping(repeated = false) {
+            if (!repeated) {
+                fetch('/api/log/frontpage', { method: 'POST' });
+            }
+            fetch('/api/log/ping', { method: 'POST' }).then(() => setTimeout(() => ping(true), 10000));
+        }
+
         loadSymbols();
         attachEvents();
+        ping();
     </script>
 </body>
 </html>

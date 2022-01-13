@@ -37,5 +37,64 @@
             <button class="btn btn-primary mt-3" id="convert">Converter</button>
         </div>
     </div>
+    <script>
+        function loadSymbols() {
+            fetch('/api/coins')
+                .then(response => response.json())
+                .then(coins => {
+                    if (coins.length === 0) {
+                        setTimeout(loadSymbols, 500);
+                        return;
+                    }
+                    coins.forEach(coin => {
+                        const optionFrom = document.createElement('option');
+                        optionFrom.value = coin;
+                        optionFrom.innerText = coin;
+                        const optionTo = optionFrom.cloneNode(true);
+                        if (coin === 'BTC') {
+                            optionFrom.selected = true;
+                        }
+                        if (coin === 'BUSD') {
+                            optionTo.selected = true;
+                        }
+                        document.getElementById('fromSymbol').appendChild(optionFrom);
+                        document.getElementById('toSymbol').appendChild(optionTo);
+                    });
+                });
+        }
+
+        function convert() {
+            const fromSymbol = document.getElementById('fromSymbol').value;
+            const toSymbol = document.getElementById('toSymbol').value;
+            const fromAmmount = document.getElementById('fromAmmount').value.trim();
+            document.getElementById('toAmmount').value = '';
+            if (fromAmmount !== '' && isFinite(fromAmmount)) {
+                fetch(`/api/convert/${fromSymbol}/${fromAmmount}/${toSymbol}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('toAmmount').value = data.result;
+                    });
+            }
+        }
+
+        function debounce(callback, timeout = 500) {
+            let timer;
+            return function() {
+                clearTimeout(timer);
+                timer = setTimeout(callback, timeout);
+            }
+        }
+
+        function attachEvents() {
+            document.getElementById('convert').addEventListener('click', convert);
+            document.getElementById('fromAmmount').addEventListener('keyup', debounce(convert));
+            document.getElementById('fromAmmount').addEventListener('change', debounce(convert));
+            document.getElementById('fromSymbol').addEventListener('change', debounce(convert));
+            document.getElementById('toSymbol').addEventListener('change', debounce(convert));
+        }
+
+        loadSymbols();
+        attachEvents();
+    </script>
 </body>
 </html>

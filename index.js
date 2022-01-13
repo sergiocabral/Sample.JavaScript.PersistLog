@@ -65,12 +65,19 @@ class ElasticsearchLogger {
     }
 
     async __saveToDatabase(log) {
+        const data = {};
+        for (const key in log.data) {
+            data[key] =
+                ['string', 'number', 'boolean'].includes(typeof log.data[key])
+                    ? log.data[key].toString()
+                    : JSON.stringify(log.data[key]);
+        }
         return this.__databaseClient.index({
             index: 'logs',
             body: {
                 message: log.message,
                 level: log.level,
-                data: log.data,
+                data,
                 timestamp: log.timestamp
             }
         });
@@ -95,10 +102,14 @@ class App {
         const url = 'https://api2.binance.com/api/v3/ticker/24hr';
         const baseCoin = 'BUSD';
 
-        console.log(`Carregando dados da API da Binance em ${url}.`);
+        console.log(`Carregando dados da API da Binance em ${url}.`, { url });
         try {
             const response = await axios.get(url);
-            console.debug(`Recebido dados da API da Binance. Status: ${response.status}, ${response.statusText}. Dados: ${JSON.stringify(response.data)}`);
+            console.debug(`Recebido dados da API da Binance. Status: ${response.status}, ${response.statusText}. Dados: ${JSON.stringify(response.data)}`, {
+                status: response.status,
+                statusText: response.statusText,
+                data: JSON.stringify(response.data)
+            });
             this.__coins = response.data
                 .filter(coin => 
                     coin.lastPrice > 0 && (
@@ -116,9 +127,13 @@ class App {
                     baseCoin: true
                 }])
                 .sort((a, b) => a.symbol.localeCompare(b.symbol));
-                console.debug(`A lista de moedas foi atualizada com ${this.__coins.length} itens: ${this.__coins.map(coin => coin.symbol).join(', ')}`);
+                console.debug(`A lista de moedas foi atualizada com ${this.__coins.length} itens: ${this.__coins.map(coin => coin.symbol).join(', ')}`, {
+                    coins: this.__coins,
+                    coinsLength: this.__coins.length,
+                    baseCoin,
+                });
             } catch (error) {
-            console.error(`Ocorreu um erro ao carregar dados da API da Binance: ${error?.message ?? error}`);
+            console.error(`Ocorreu um erro ao carregar dados da API da Binance: ${error?.message ?? error}`, { error });
         }
     }
 
@@ -127,14 +142,14 @@ class App {
 
         const wwwroot = path.join(__dirname, 'wwwroot');
         this.__express.use(express.static(wwwroot));
-        console.log(`Aplicação está usando a pasta ${wwwroot} como wwwroot.`);
+        console.log(`Aplicação está usando a pasta ${wwwroot} como wwwroot.`, { wwwroot });
 
         this.__express.use((req, res, next) => {
             res.on('finish', () => {
                 if (res.statusCode >= 400) {
-                    console.warn(`Resposta ${res.statusCode} para ${req.method} ${req.url}`);
+                    console.warn(`Resposta ${res.statusCode} para ${req.method} ${req.url}`, { statusCode: res.statusCode, method: req.method, url: req.url });
                 } else {
-                    console.debug(`Resposta ${res.statusCode} para ${req.method} ${req.url}`);
+                    console.debug(`Resposta ${res.statusCode} para ${req.method} ${req.url}`, { statusCode: res.statusCode, method: req.method, url: req.url });
                 }
             });
             next();
@@ -145,13 +160,13 @@ class App {
         this.__express.post('/api/log/:key', async (req, res) => {
             switch (req.params.key) {
                 case 'frontpage':
-                    console.log(`Página inicial carregada por um usuário.`);
+                    console.log(`Página inicial carregada por um usuário.`, { logkey: req.params.key });
                     break;
                 case 'ping':
                     console.debug(`Usuário pingou o servidor.`);
                     break;
                 default:
-                    console.warn(`Recebido evento de log deconhecido: ${req.params.key}`);
+                    console.warn(`Recebido evento de log deconhecido: ${req.params.key}`, { logkey: req.params.key });
                     break;
             }
             res.status(200).send();
@@ -170,16 +185,16 @@ class App {
                 console.warn(`Conversão não pode ser realizada pois a lista de moedas está vazia.`);
                 res.status(500).json({ error: 'No coins available' });
             } else if (Number.isNaN(ammount)) {
-                console.warn(`Conversão não pode ser realizada pois o valor da moeda é inválido.`);
+                console.warn(`Conversão não pode ser realizada pois o valor da moeda é inválido.`, { ammount });
                 res.status(400).json({ error: 'Ammount must be a number' });
             } else if (!this.__availableSymbols.includes(from) || !this.__availableSymbols.includes(to)) {
-                console.warn(`Conversão não pode ser realizada pois a moeda ${from} ou ${to} não está disponível.`);
+                console.warn(`Conversão não pode ser realizada pois a moeda ${from} ou ${to} não está disponível.`, { from, to });
                 res.status(400).json({ error: `Symbol must be one of: ${this.__availableSymbols.join(', ')}` });
             } else {
                 const fromPrice = this.__coins.find(coin => coin.symbol === from).price;
                 const toPrice = this.__coins.find(coin => coin.symbol === to).price;
                 const result = (ammount * fromPrice / toPrice).toFixed(8);
-                console.log(`Convertendo ${ammount} ${from} para ${to} = ${result}`);
+                console.log(`Convertendo ${ammount} ${from} para ${to} = ${result}`, { from, to, ammount, fromPrice, toPrice, result, action: "convert" });
                 res.json({result});
             }
         });
@@ -187,7 +202,7 @@ class App {
 
     start() {
         this.__express.listen(this.__port, () => {
-            console.log(`Servidor HTTP iniciado na porta ${this.__port}.`);
+            console.log(`Servidor HTTP iniciado na porta ${this.__port}.`, { port: this.__port });
         });
     }
 }
@@ -195,7 +210,7 @@ class App {
 try {
     new ElasticsearchLogger().configure();
 } catch (error) {
-    console.error(`Ocorreu um erro durante a configuração do ElasticsearchLogger: ${error?.message ?? error}`);
+    console.error(`Ocorreu um erro durante a configuração do ElasticsearchLogger: ${error?.message ?? error}`, { error });
 }
 
 try {
@@ -203,5 +218,5 @@ try {
     new App().start();
     console.info('Aplicação finalizada.');
 } catch (error) {
-    console.error(`Um erro não tratado ocorreu: ${error?.message ?? error}`);
+    console.error(`Um erro não tratado ocorreu: ${error?.message ?? error}`, { error });
 }

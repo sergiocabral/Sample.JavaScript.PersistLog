@@ -78,8 +78,21 @@ class ElasticsearchLogger {
                 ? log.data[key].toString()
                 : JSON.stringify(log.data[key]);
         }
+        const index = `logs-${
+            log.timestamp.getFullYear()
+        }_${
+            (log.timestamp.getMonth() + 1).toString().padStart(2, '0')
+        }_${
+            log.timestamp.getDate().toString().padStart(2, '0')
+        }_${
+            log.timestamp.getHours().toString().padStart(2, '0')
+        }_${
+            log.timestamp.getMinutes().toString().padStart(2, '0')
+        }_${
+            log.level
+        }`;
         await this.__databaseClient.index({
-            index: 'logs',
+            index,
             body: {
                 message: log.message,
                 level: log.level,

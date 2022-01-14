@@ -1,6 +1,88 @@
 const path = require('path');
 const express = require('express');
 const axios = require('axios');
+const elasticsearch = require('@elastic/elasticsearch');
+
+class ElasticsearchLogger {
+    constructor() {
+        this.__logs = [];
+
+        this.__originalConsole = {
+            log: console.log,
+            info: console.info,
+            warn: console.warn,
+            error: console.error,
+            debug: console.debug,
+        }
+
+        this.__databaseClient = this.__configureDatabaseClient();
+
+        this.__isPooling = false;
+    }
+
+    configure() {
+        console.log = (message, data) => this.post(message, 'log', data);
+        console.info = (message, data) => this.post(message, 'info', data);
+        console.warn = (message, data) => this.post(message, 'warn', data);
+        console.error = (message, data) => this.post(message, 'error', data);
+        console.debug = (message, data) => this.post(message, 'debug', data);
+    }
+
+    post(message, level = 'log', data = undefined) {
+        const log = {
+            message,
+            level,
+            data,
+            timestamp: new Date()
+        };
+        this.__logs.push(log);
+        this.__pooling();
+
+        this.__originalConsole[level](`[${log.timestamp.toISOString()}] ${log.level.padStart(5)}: ${message}`);
+    }
+
+    async __pooling() {
+        if (this.__isPooling) return;
+        this.__isPooling = true;
+
+        const log = this.__logs.shift();
+        if (log) {
+            let interval = 1;
+            try {
+                await this.__saveToDatabase(log);
+            } catch (error) {
+                this.__originalConsole.error(`Ocorreu um erro ao enviar o log para o banco de dados. ${error?.message ?? error}`);
+                interval = 30000;
+                this.__logs.unshift(log);
+            }
+            setTimeout(() => this.__pooling(), interval);
+        }
+
+        this.__isPooling = false;
+    }
+
+    __configureDatabaseClient() {
+        return new elasticsearch.Client({
+            node: process.env.ELASTICSEARCH_NODE || 'http://20.206.97.76:9200',
+            auth: {
+                username: process.env.ELASTICSEARCH_USER || 'elastic',
+                password: process.env.ELASTICSEARCH_PASS || 'my_password_for_elastic'
+            }
+        });
+    }
+
+    async __saveToDatabase(log) {
+        await this.__databaseClient.index({
+            index: 'logs',
+            body: {
+                message: log.message,
+                level: log.level,
+                data: log.data,
+                timestamp: log.timestamp,
+            }
+        });
+    }
+}
 
 class App {
     constructor() {
@@ -114,6 +196,12 @@ class App {
             console.log(`O serviço HTTP foi ligado na porta ${this.__port}.`);
         });
     }
+}
+
+try {
+    new ElasticsearchLogger().configure();
+} catch (error) {
+    console.error(`Ocorreu um erro ao configurar o ElasticsearchLogger. ${error?.message ?? error}`);
 }
 
 try {

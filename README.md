@@ -23,6 +23,13 @@ Em seguida abra a aplicação na url [http://localhost:3000/](http://localhost:3
 
 *Figura 2: Tela do aplicativo web.*
 
+## Material de apoio
+
+O ebook com o passo-a-passo para montagem de um ambiente Elasticsearch e exemplos de código em JavaScript para trabalhar com o banco de dados está nesses links:
+
+- [ebooks.sergiocabral.com/nodejs-elasticsearch-logging](https://ebooks.sergiocabral.com/nodejs-elasticsearch-logging)
+- [ebooks.sergiocabral.com/nodejs-elasticsearch-logging.pdf](https://ebooks.sergiocabral.com/nodejs-elasticsearch-logging.pdf)
+
 ## Expert
 
 | [<img src="https://avatars.githubusercontent.com/u/665373?v=4" width="75px;"/>](https://github.com/sergiocabral) |
